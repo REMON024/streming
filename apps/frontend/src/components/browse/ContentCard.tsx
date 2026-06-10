@@ -67,12 +67,11 @@ export function ContentCard({ content, className }: Props) {
       <AnimatePresence>
         {isHovered && (
           <motion.div
-            initial={{ opacity: 0, y: 0, scaleY: 0 }}
-            animate={{ opacity: 1, y: 0, scaleY: 1 }}
+            initial={{ opacity: 0, scaleY: 0 }}
+            animate={{ opacity: 1, scaleY: 1 }}
             exit={{ opacity: 0, scaleY: 0 }}
-            transformOrigin="top"
             className="absolute left-0 right-0 top-full z-30 hidden md:block bg-zinc-900 rounded-b-lg shadow-2xl border border-zinc-700/50 overflow-hidden"
-            style={{ originY: 0 }}
+            style={{ originY: 0, transformOrigin: 'top' }}
           >
             <div className="p-3">
               {/* Quick actions */}
