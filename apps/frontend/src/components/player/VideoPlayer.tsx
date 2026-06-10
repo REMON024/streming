@@ -4,30 +4,11 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import Hls from 'hls.js';
 import { PlayerControls } from './PlayerControls';
 import { useProgressSync } from './useProgressSync';
-import { AdPlayer, type AdConfig } from './AdPlayer';
-import { AdBanner, type MidRollAdConfig } from './AdBanner';
+import { AdPlayer } from './AdPlayer';
+import { AdBanner } from './AdBanner';
 import type { Subtitle } from '@/types/content';
 import { useAuthStore } from '@/store/auth';
-
-// Mid-roll fires every MID_ROLL_INTERVAL seconds for Free tier users
-const MID_ROLL_INTERVAL = 15 * 60; // 15 minutes
-
-// Placeholder ad data — replace with real ad-server calls in production
-const DEMO_PRE_ROLL: AdConfig = {
-  videoUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4',
-  clickThroughUrl: 'https://streamix.example.com/upgrade',
-  advertiserName: 'Streamix Premium',
-  skipAfterSeconds: 5,
-};
-
-const DEMO_MID_ROLL: MidRollAdConfig = {
-  imageUrl: 'https://via.placeholder.com/120x80/E50914/ffffff?text=Streamix',
-  clickThroughUrl: 'https://streamix.example.com/upgrade',
-  advertiserName: 'Streamix',
-  headline: 'Enjoy ad-free streaming — upgrade to Premium',
-  durationSeconds: 30,
-  closeAfterSeconds: 5,
-};
+import { useAdConfig } from '@/hooks/useAdConfig';
 
 interface Props {
   masterPlaylistUrl: string;
@@ -37,10 +18,6 @@ interface Props {
   contentId: string;
   episodeId?: string;
   qualities?: string[];
-  /** Override the pre-roll ad config (e.g. from an ad server) */
-  preRollAd?: AdConfig;
-  /** Override mid-roll ad config */
-  midRollAd?: MidRollAdConfig;
 }
 
 export function VideoPlayer({
@@ -51,8 +28,6 @@ export function VideoPlayer({
   contentId,
   episodeId,
   qualities = [],
-  preRollAd,
-  midRollAd,
 }: Props) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const hlsRef = useRef<Hls | null>(null);
@@ -77,10 +52,20 @@ export function VideoPlayer({
   const subscriptionTier = useAuthStore((s) => s.subscriptionTier);
   const isFree = subscriptionTier === 0;
 
-  // Ad state — only active for Free tier
-  const [showPreRoll, setShowPreRoll] = useState(isFree);
+  // Ad config loaded from backend (null until fetched, or for paid users)
+  const { config: adConfig } = useAdConfig();
+  const adsEnabled = isFree && (adConfig?.enabled ?? false);
+  const midRollInterval = adConfig?.midRollIntervalSeconds ?? 900;
+
+  // Ad state — only active for Free tier when config has loaded
+  const [showPreRoll, setShowPreRoll] = useState(false);
   const [showMidRoll, setShowMidRoll] = useState(false);
-  const lastMidRollAt = useRef(0); // track last mid-roll fire time
+  const lastMidRollAt = useRef(0);
+
+  // Trigger pre-roll as soon as ad config arrives
+  useEffect(() => {
+    if (adsEnabled) setShowPreRoll(true);
+  }, [adsEnabled]);
 
   const { sync } = useProgressSync(contentId, episodeId);
 
@@ -173,9 +158,9 @@ export function VideoPlayer({
       onTimeUpdate?.(video.currentTime, video.duration);
       sync(video.currentTime, video.duration);
 
-      // Mid-roll: fire every MID_ROLL_INTERVAL seconds for Free tier
-      if (isFree && !showMidRoll) {
-        const slot = Math.floor(video.currentTime / MID_ROLL_INTERVAL);
+      // Mid-roll: fire every midRollInterval seconds for Free tier
+      if (adsEnabled && !showMidRoll) {
+        const slot = Math.floor(video.currentTime / midRollInterval);
         if (slot > 0 && slot !== lastMidRollAt.current) {
           lastMidRollAt.current = slot;
           video.pause();
@@ -386,18 +371,18 @@ export function VideoPlayer({
         </div>
       )}
 
-      {/* Pre-roll ad — shown before content starts (Free tier only) */}
-      {showPreRoll && isFree && (
+      {/* Pre-roll ad — shown before content starts (Free tier, config loaded) */}
+      {showPreRoll && adsEnabled && adConfig && (
         <AdPlayer
-          ad={preRollAd ?? DEMO_PRE_ROLL}
+          ad={adConfig.preRoll}
           onComplete={handlePreRollComplete}
         />
       )}
 
-      {/* Mid-roll ad banner — shown at 15-min intervals (Free tier only) */}
-      {showMidRoll && isFree && !showPreRoll && (
+      {/* Mid-roll ad banner — shown at configured intervals (Free tier only) */}
+      {showMidRoll && adsEnabled && !showPreRoll && adConfig && (
         <AdBanner
-          ad={midRollAd ?? DEMO_MID_ROLL}
+          ad={adConfig.midRoll}
           onClose={handleMidRollClose}
         />
       )}

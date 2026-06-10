@@ -28,6 +28,10 @@ try
     builder.Services.AddApplication();
     builder.Services.AddInfrastructure(builder.Configuration);
 
+    // Ads configuration (bound from appsettings "Ads" section)
+    builder.Services.Configure<StreamingPlatform.API.Controllers.AdsSettings>(
+        builder.Configuration.GetSection("Ads"));
+
     // Controllers
     builder.Services.AddControllers();
     builder.Services.AddEndpointsApiExplorer();
