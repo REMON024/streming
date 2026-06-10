@@ -1,0 +1,29 @@
+# Environment
+.env
+.env.local
+.env.*.local
+!.env.example
+
+# .NET
+apps/backend/bin/
+apps/backend/obj/
+apps/backend/**/*.user
+apps/backend/.vs/
+apps/backend/TestResults/
+
+# Go
+apps/streaming/streaming-server
+
+# Node / Next.js
+apps/frontend/node_modules/
+apps/frontend/.next/
+apps/frontend/out/
+apps/frontend/.pnpm-store/
+
+# Docker volumes (local)
+.docker-data/
+
+# OS
+.DS_Store
+Thumbs.db
+*.swp
